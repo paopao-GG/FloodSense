@@ -1,22 +1,26 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Flood Sense — production-grade dark dashboard
+   Flood Sense — cyan glassmorphism dashboard
    ───────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Surfaces */
-  --bg:           #0a0c14;
-  --bg-2:         #0f1220;
-  --surface:      #161a2b;
-  --surface-2:    #1d2138;
-  --surface-3:    #262a44;
-  --border:       #2a3050;
-  --border-soft:  #1f2440;
+  /* Background gradient endpoints (deep teal-cyan ocean tones) */
+  --bg:           #072031;
+  --bg-2:         #0a3146;
 
-  /* Text */
-  --text:         #eef0fb;
-  --text-soft:    #bcc1e0;
-  --text-muted:   #7b82a8;
-  --text-dim:     #565b7a;
+  /* Glass surfaces — translucent white-cyan layers over the gradient */
+  --surface:      rgba(180, 230, 245, 0.06);
+  --surface-2:    rgba(180, 230, 245, 0.10);
+  --surface-3:    rgba(180, 230, 245, 0.16);
+
+  /* Translucent "glass edge" hairlines */
+  --border:       rgba(255, 255, 255, 0.18);
+  --border-soft:  rgba(255, 255, 255, 0.10);
+
+  /* Text — warm slightly toward cyan-white for tonal coherence */
+  --text:         #f1f9fc;
+  --text-soft:    #c8dfe7;
+  --text-muted:   #9fc2d2;
+  --text-dim:     #6f93a3;
 
   /* Status */
   --normal:        #22c55e;
@@ -49,9 +53,12 @@
   --radius:    14px;
   --radius-lg: 18px;
 
-  --shadow-card:    0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35);
-  --shadow-elev:    0 1px 0 rgba(255,255,255,0.05) inset, 0 14px 38px rgba(0,0,0,0.5);
+  --shadow-card:    0 1px 0 rgba(255,255,255,0.08) inset, 0 8px 28px rgba(0,20,30,0.35);
+  --shadow-elev:    0 1px 0 rgba(255,255,255,0.10) inset, 0 16px 42px rgba(0,20,30,0.5);
   --ring:           0 0 0 1px var(--border);
+
+  /* Glass blur — single source of truth so we can tune all surfaces together */
+  --glass-blur:     blur(16px) saturate(140%);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,9 +67,11 @@ html, body { min-height: 100%; }
 
 body {
   background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(99,102,241,0.10), transparent 60%),
-    radial-gradient(900px 500px at 90% 100%, rgba(56,189,248,0.06), transparent 60%),
+    radial-gradient(1100px 620px at 50% -8%, rgba(56,189,248,0.22), transparent 62%),
+    radial-gradient(800px 520px at 88% 100%, rgba(20,184,166,0.14), transparent 62%),
+    radial-gradient(700px 500px at 8% 110%, rgba(8,145,178,0.12), transparent 62%),
     linear-gradient(180deg, var(--bg-2), var(--bg));
+  background-attachment: fixed;
   color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-feature-settings: 'cv11', 'ss01';
@@ -80,9 +89,11 @@ img { display: block; max-width: 100%; }
 .topbar {
   border-bottom: 1px solid var(--border-soft);
   background:
-    linear-gradient(180deg, rgba(99,102,241,0.05), transparent 70%),
-    linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-  backdrop-filter: blur(6px);
+    linear-gradient(180deg, rgba(56,189,248,0.10), transparent 75%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset;
 }
 
 .topbar-inner {
@@ -248,6 +259,8 @@ main {
   gap: 0.55rem;
   overflow: hidden;
   box-shadow: var(--shadow-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -263,7 +276,7 @@ main {
 .card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-elev);
-  border-color: var(--surface-3);
+  border-color: rgba(255,255,255,0.28);
 }
 
 .card--water    { --accent: var(--accent-water); }
@@ -329,6 +342,8 @@ main {
   flex-direction: column;
   gap: 0.75rem;
   box-shadow: var(--shadow-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .chart-head {
@@ -351,7 +366,7 @@ main {
   letter-spacing: 0.08em;
   padding: 0.18rem 0.55rem;
   border-radius: 999px;
-  background: var(--surface-3);
+  background: rgba(255,255,255,0.10);
   color: var(--text-soft);
 }
 
@@ -411,6 +426,8 @@ main {
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .no-snapshot {
@@ -446,8 +463,11 @@ main {
 details#history-details {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
   overflow: hidden;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-card);
 }
 
 .history-summary {
@@ -481,7 +501,7 @@ details[open] .history-summary::before {
 .history-count {
   font-size: var(--fs-xs);
   font-weight: 600;
-  background: var(--surface-3);
+  background: rgba(255,255,255,0.10);
   color: var(--text-soft);
   padding: 0.12rem 0.55rem;
   border-radius: 999px;
@@ -568,14 +588,24 @@ details[open] #snapshot-history { padding: 0.9rem; }
   padding: 1rem 1.25rem 1.25rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(34,197,94,0.04), transparent 40%), var(--surface);
+  background:
+    linear-gradient(180deg, rgba(56,189,248,0.06), transparent 45%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
 }
 
 .flood-section.active {
-  border-color: rgba(239,68,68,0.5);
-  background: linear-gradient(180deg, rgba(239,68,68,0.10), transparent 50%), var(--surface);
-  box-shadow: 0 0 0 1px rgba(239,68,68,0.25), 0 0 36px rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.55);
+  background:
+    linear-gradient(180deg, rgba(239,68,68,0.16), transparent 55%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow:
+    0 0 0 1px rgba(239,68,68,0.28),
+    0 0 42px rgba(239,68,68,0.22),
+    0 1px 0 rgba(255,255,255,0.08) inset;
 }
 
 .flood-chip {
@@ -595,8 +625,9 @@ details[open] #snapshot-history { padding: 0.9rem; }
 .lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(5,7,15,0.92);
-  backdrop-filter: blur(6px);
+  background: rgba(7,30,40,0.88);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -651,7 +682,11 @@ details[open] #snapshot-history { padding: 0.9rem; }
 .site-footer {
   margin-top: 2.5rem;
   border-top: 1px solid var(--border-soft);
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.25));
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.03), transparent 40%),
+    linear-gradient(180deg, transparent, rgba(0,20,30,0.35));
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .footer-inner {
