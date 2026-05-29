@@ -9,6 +9,8 @@ import adafruit_dht
 import RPi.GPIO as GPIO
 import ai_edge_litert.interpreter as tflite
 from smbus2 import SMBus
+import cloudinary
+import cloudinary.uploader
 
 # =====================================================================
 # 1. HARDWARE PIN & CLOUD CONFIGURATION
@@ -25,8 +27,20 @@ ECHO_PIN = 24        # GPIO 24
 DISTANCE_THRESHOLD_CM = 30.0  
 
 # Firebase REST API Realtime Database Node Endpoint URL
-# (Replace 'your-project-id' with your actual Firebase project ID later)
-WEB_URL = "https://your-project-id-default-rtdb.firebaseio.com/flood_telemetry.json"
+# (Replace 'your-project-id' with your actual Firebase project ID)
+WEB_URL = "https://floodsense-ffce3-default-rtdb.asia-southeast1.firebasedatabase.app/flood_telemetry.json"
+
+# Cloudinary credentials — copy from cloudinary.com → Dashboard
+CLOUDINARY_CLOUD_NAME = "dqcqkpjcc"
+CLOUDINARY_API_KEY    = "284736694491497"
+CLOUDINARY_API_SECRET = "eZH4JZWT-q5kAhrriQ59J3yxCtE"
+
+cloudinary.config(
+    cloud_name = CLOUDINARY_CLOUD_NAME,
+    api_key    = CLOUDINARY_API_KEY,
+    api_secret = CLOUDINARY_API_SECRET,
+    secure     = True
+)
 
 # I2C LCD Parameters
 I2C_BUS = 1
@@ -174,7 +188,21 @@ def get_ultrasonic_distance():
 
     return ((stop_time - start_time) * 34300) / 2
 
-def send_firebase_payload(status, confidence, distance, temp, hum):
+def upload_snapshot(frame):
+    try:
+        _, buf = cv2.imencode('.jpg', frame)
+        result = cloudinary.uploader.upload(
+            buf.tobytes(),
+            folder="flood_snapshots",
+            resource_type="image"
+        )
+        print(f"📷 Snapshot uploaded: {result['secure_url']}")
+        return result["secure_url"]
+    except Exception as e:
+        print(f"📷 Snapshot upload failed: {e}")
+        return None
+
+def send_firebase_payload(status, confidence, distance, temp, hum, snapshot_url=None):
     payload = {
         "status": status,
         "cnn_confidence": f"{confidence:.1f}%",
@@ -183,8 +211,9 @@ def send_firebase_payload(status, confidence, distance, temp, hum):
         "humidity_percent": hum,
         "epoch_timestamp": time.time()
     }
+    if snapshot_url:
+        payload["snapshot_url"] = snapshot_url
     try:
-        # Using HTTP PUT to sync the data vector node straight into Firebase RTDB
         response = requests.put(WEB_URL, json=payload, timeout=2)
         print(f"📡 Firebase Cloud Updated! HTTP Status: {response.status_code}")
     except Exception as e:
@@ -221,30 +250,33 @@ try:
         
         system_status = "Normal Conditions"
         cnn_confidence = 0.0
+        snapshot_url = None
 
         # C. Hardware Threshold Gating Trigger Evaluation Check
         if distance <= DISTANCE_THRESHOLD_CM:
             print(f"⚠️ THRESHOLD BREACHED ({distance:.1f}cm) -> Running CNN Verification...")
             lcd_display_text("LEVEL BREACHED", 1)
-            
+
             if CAMERA_AVAILABLE:
                 # Direct array extraction frame capture from hardware
                 raw_frame = picam.capture_array()
-                
+
                 # Image processing normalization matrix operations
                 resized = cv2.resize(raw_frame, (input_width, input_height))
                 normalized_image = resized.astype(np.float32) / 255.0
                 input_tensor = np.expand_dims(normalized_image, axis=0)
-                
+
                 # Inference execution call
                 interpreter.set_tensor(input_details[0]['index'], input_tensor)
                 interpreter.invoke()
-                
+
                 # Parse output matrix vectors
                 predictions = interpreter.get_tensor(output_details[0]['index'])[0]
                 top_prediction_idx = int(np.argmax(predictions))
                 cnn_confidence = float(predictions[top_prediction_idx]) * 100
                 system_status = LABELS[top_prediction_idx]
+
+                snapshot_url = upload_snapshot(raw_frame)
             else:
                 # Pre-stage test simulation mode handler
                 system_status = "FLOOD ALERT ACTIVE"
@@ -253,12 +285,16 @@ try:
 
             print(f"CNN Verdict Result: {system_status} ({cnn_confidence:.1f}%)")
 
-            # D. Dispatch alert sequence across Web Interface if Flood status matches
+            # D. Update LCD status for flood vs CNN-confirmed-normal
             if system_status == "FLOOD ALERT ACTIVE":
                 lcd_display_text("!! FLOOD ALERT !!", 1)
-                send_firebase_payload(system_status, cnn_confidence, distance, temperature, humidity)
+            else:
+                lcd_display_text("STATUS: NORMAL", 1)
         else:
             lcd_display_text("STATUS: NORMAL", 1)
+
+        # Always push live telemetry every cycle so webapp stays current
+        send_firebase_payload(system_status, cnn_confidence, distance, temperature, humidity, snapshot_url)
 
         # E. Push live telemetry across lines 2-4
         lcd_display_text(f"Water:  {distance:.1f} cm", 2)
