@@ -12,6 +12,7 @@
     <div id="status-banner" class="status-banner">
       <span id="status-text">CONNECTING...</span>
     </div>
+    <p id="location-line" class="location-line">📍 <span id="location">—</span></p>
     <p id="last-updated" class="last-updated">Last updated: —</p>
   </header>
 
@@ -39,15 +40,28 @@
       </div>
     </div>
 
+    <!-- Live Camera Feed (periodic, every 30s) -->
     <section class="snapshot-section">
-      <h2>Latest Snapshot</h2>
-      <div id="latest-snapshot-container" class="snapshot-main">
-        <p id="no-snapshot-msg" class="no-snapshot">No snapshot captured yet. Snapshots are taken when water level breaches the threshold.</p>
-        <img id="latest-snapshot" src="" alt="Latest camera snapshot" class="snapshot-img hidden" />
+      <h2>Live Camera Feed</h2>
+      <div id="live-snapshot-container" class="snapshot-main">
+        <p id="no-live-msg" class="no-snapshot">Live snapshots upload every 30 seconds.</p>
+        <img id="live-snapshot" src="" alt="Live camera snapshot" class="snapshot-img hidden" />
       </div>
 
       <h2>Snapshot History <span class="history-count" id="history-count"></span></h2>
       <div id="snapshot-history" class="snapshot-gallery"></div>
+    </section>
+
+    <!-- Flood Alert Section -->
+    <section class="flood-section" id="flood-section">
+      <h2>
+        Flood Status
+        <span id="flood-status-chip" class="flood-chip safe">SAFE</span>
+      </h2>
+      <div id="flood-snapshot-container" class="snapshot-main">
+        <p id="no-flood-msg" class="no-snapshot">No flood events recorded. This section will update when a flood is detected.</p>
+        <img id="flood-snapshot" src="" alt="Flood event snapshot" class="snapshot-img hidden" />
+      </div>
     </section>
   </main>
 

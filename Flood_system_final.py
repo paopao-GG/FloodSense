@@ -188,12 +188,22 @@ def get_ultrasonic_distance():
 
     return ((stop_time - start_time) * 34300) / 2
 
-def upload_snapshot(frame):
+def get_location():
+    try:
+        r = requests.get("http://ip-api.com/json", timeout=5)
+        d = r.json()
+        if d.get("status") == "success":
+            return f"{d['city']}, {d['regionName']}, {d['country']}"
+    except Exception:
+        pass
+    return "Unknown Location"
+
+def upload_snapshot(frame, folder="flood_snapshots"):
     try:
         _, buf = cv2.imencode('.jpg', frame)
         result = cloudinary.uploader.upload(
             buf.tobytes(),
-            folder="flood_snapshots",
+            folder=folder,
             resource_type="image"
         )
         print(f"📷 Snapshot uploaded: {result['secure_url']}")
@@ -202,17 +212,21 @@ def upload_snapshot(frame):
         print(f"📷 Snapshot upload failed: {e}")
         return None
 
-def send_firebase_payload(status, confidence, distance, temp, hum, snapshot_url=None):
+def send_firebase_payload(status, confidence, distance, temp, hum,
+                          live_snapshot_url=None, flood_snapshot_url=None):
     payload = {
         "status": status,
         "cnn_confidence": f"{confidence:.1f}%",
         "water_depth_gap_cm": round(distance, 2),
         "temperature_c": temp,
         "humidity_percent": hum,
-        "epoch_timestamp": time.time()
+        "epoch_timestamp": time.time(),
+        "location": LOCATION
     }
-    if snapshot_url:
-        payload["snapshot_url"] = snapshot_url
+    if live_snapshot_url:
+        payload["live_snapshot_url"] = live_snapshot_url
+    if flood_snapshot_url:
+        payload["flood_snapshot_url"] = flood_snapshot_url
     try:
         response = requests.put(WEB_URL, json=payload, timeout=2)
         print(f"📡 Firebase Cloud Updated! HTTP Status: {response.status_code}")
@@ -222,11 +236,19 @@ def send_firebase_payload(status, confidence, distance, temp, hum, snapshot_url=
 # =====================================================================
 # 4. MAIN TELEMETRY WORKLOOP
 # =====================================================================
+print("📍 Detecting location...")
+LOCATION = get_location()
+print(f"📍 Location: {LOCATION}")
+
 print("\n🚀 System active. Running monitoring routine loop...")
 lcd_display_text("SYSTEM ARMED", 1)
 lcd_display_text("MONITORING LIVE", 2)
 lcd_display_text("", 3)
 lcd_display_text("", 4)
+
+last_snapshot_time     = 0
+live_snapshot_url      = None
+last_flood_snapshot_url = None  # persists the most recent confirmed flood snapshot
 
 try:
     while True:
@@ -237,7 +259,6 @@ try:
             if temperature is None or humidity is None:
                 temperature, humidity = 0.0, 0.0
         except RuntimeError:
-            # Handles natural signal line jitter without crashing out completely
             temperature, humidity = 0.0, 0.0
 
         # B. Fetch Water Line Distance via Pulse Timings
@@ -247,10 +268,15 @@ try:
             distance = 999.0
 
         print(f"Metrics -> Distance: {distance:.1f}cm | Temp: {temperature}°C | Hum: {humidity}%")
-        
-        system_status = "Normal Conditions"
+
+        system_status  = "Normal Conditions"
         cnn_confidence = 0.0
-        snapshot_url = None
+
+        # B2. Periodic live snapshot every 30 seconds (independent of flood status)
+        if CAMERA_AVAILABLE and (time.time() - last_snapshot_time >= 30):
+            raw_frame = picam.capture_array()
+            live_snapshot_url = upload_snapshot(raw_frame, folder="flood_live")
+            last_snapshot_time = time.time()
 
         # C. Hardware Threshold Gating Trigger Evaluation Check
         if distance <= DISTANCE_THRESHOLD_CM:
@@ -258,34 +284,30 @@ try:
             lcd_display_text("LEVEL BREACHED", 1)
 
             if CAMERA_AVAILABLE:
-                # Direct array extraction frame capture from hardware
                 raw_frame = picam.capture_array()
 
-                # Image processing normalization matrix operations
                 resized = cv2.resize(raw_frame, (input_width, input_height))
                 normalized_image = resized.astype(np.float32) / 255.0
                 input_tensor = np.expand_dims(normalized_image, axis=0)
 
-                # Inference execution call
                 interpreter.set_tensor(input_details[0]['index'], input_tensor)
                 interpreter.invoke()
 
-                # Parse output matrix vectors
                 predictions = interpreter.get_tensor(output_details[0]['index'])[0]
                 top_prediction_idx = int(np.argmax(predictions))
                 cnn_confidence = float(predictions[top_prediction_idx]) * 100
                 system_status = LABELS[top_prediction_idx]
 
-                snapshot_url = upload_snapshot(raw_frame)
+                if system_status == "FLOOD ALERT ACTIVE":
+                    last_flood_snapshot_url = upload_snapshot(raw_frame, folder="flood_alerts")
             else:
-                # Pre-stage test simulation mode handler
                 system_status = "FLOOD ALERT ACTIVE"
                 cnn_confidence = 100.0
                 print("Pre-Stage System: Automatically asserting FLOOD confirmation flag.")
 
             print(f"CNN Verdict Result: {system_status} ({cnn_confidence:.1f}%)")
 
-            # D. Update LCD status for flood vs CNN-confirmed-normal
+            # D. Update LCD status
             if system_status == "FLOOD ALERT ACTIVE":
                 lcd_display_text("!! FLOOD ALERT !!", 1)
             else:
@@ -294,7 +316,8 @@ try:
             lcd_display_text("STATUS: NORMAL", 1)
 
         # Always push live telemetry every cycle so webapp stays current
-        send_firebase_payload(system_status, cnn_confidence, distance, temperature, humidity, snapshot_url)
+        send_firebase_payload(system_status, cnn_confidence, distance, temperature, humidity,
+                              live_snapshot_url, last_flood_snapshot_url)
 
         # E. Push live telemetry across lines 2-4
         lcd_display_text(f"Water:  {distance:.1f} cm", 2)

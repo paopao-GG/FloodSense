@@ -84,6 +84,11 @@ header h1 {
   50% { opacity: 0.3; }
 }
 
+.location-line {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 .last-updated {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -249,6 +254,53 @@ main {
 
 .hidden {
   display: none !important;
+}
+
+/* ── Flood Section ── */
+.flood-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-left: 3px solid var(--border);
+  padding-left: 1rem;
+  transition: border-color 0.3s;
+}
+
+.flood-section.active {
+  border-left-color: var(--alert);
+}
+
+.flood-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.flood-chip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.flood-chip.safe {
+  background: var(--normal-bg);
+  color: var(--normal);
+}
+
+.flood-chip.flood {
+  background: var(--alert-bg);
+  color: var(--alert);
+  animation: pulse 1.5s infinite;
 }
 
 /* ── Responsive ── */
