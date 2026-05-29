@@ -44,6 +44,25 @@ header h1 {
   color: var(--text-muted);
 }
 
+.credits {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.credits-authors {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.credits-dept {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
 .status-banner {
   display: inline-flex;
   align-items: center;
