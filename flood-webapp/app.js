@@ -40,6 +40,10 @@ const lightbox              = document.getElementById("lightbox");
 const lightboxImg           = document.getElementById("lightbox-img");
 const tempCanvas            = document.getElementById("temp-chart");
 const humidityCanvas        = document.getElementById("humidity-chart");
+const waterCanvas           = document.getElementById("water-chart");
+const cnnCanvas             = document.getElementById("cnn-chart");
+const viewTabs              = document.querySelectorAll(".view-tab");
+const views                 = document.querySelectorAll(".view");
 
 const SIX_HOURS = 6 * 3600;
 
@@ -48,6 +52,8 @@ const MAX_CHART_POINTS = 60;
 const chartLabels  = [];
 const tempData     = [];
 const humidityData = [];
+const waterData    = [];
+const cnnData      = [];
 
 function hexToRgba(hex, alpha) {
   const h = hex.replace("#", "");
@@ -117,8 +123,11 @@ function makeChart(canvas, label, color, suggestedMin, suggestedMax) {
   });
 }
 
-const tempChart     = makeChart(tempCanvas,     "Temperature °C", "#f59e0b", 15, 45);
-const humidityChart = makeChart(humidityCanvas, "Humidity %",     "#6366f1",  0, 100);
+const tempChart     = makeChart(tempCanvas,     "Temperature °C",   "#f59e0b", 15, 45);
+const humidityChart = makeChart(humidityCanvas, "Humidity %",       "#6366f1",  0, 100);
+const waterChart    = makeChart(waterCanvas,    "Water Level cm",   "#38bdf8",  0, 60);
+const cnnChart      = makeChart(cnnCanvas,      "CNN Confidence %", "#c084fc",  0, 100);
+const allCharts     = [tempChart, humidityChart, waterChart, cnnChart];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function downloadImage(url) {
@@ -202,7 +211,7 @@ function updateFloodSnapshot(url) {
   floodSnapshot.onclick = () => openLightbox(url);
 }
 
-function pushChartPoint(ts, temp, hum) {
+function pushChartPoint(ts, temp, hum, water, cnn) {
   const timeLabel = ts
     ? new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
     : "—";
@@ -211,17 +220,25 @@ function pushChartPoint(ts, temp, hum) {
     chartLabels.shift();
     tempData.shift();
     humidityData.shift();
+    waterData.shift();
+    cnnData.shift();
   }
   chartLabels.push(timeLabel);
 
-  // null renders as a gap in the line rather than a zero spike
+  // null renders as a gap in the line rather than a zero/sentinel spike
   tempData.push(temp !== 0 ? temp : null);
   humidityData.push(hum !== 0 ? hum : null);
+  waterData.push(water != null && water < 400 ? water : null);  // 999 = ultrasonic timeout
+  cnnData.push(cnn ? cnn : null);                                // 0% = no detection ran
 
   tempChart.data.datasets[0].data     = [...tempData];
   humidityChart.data.datasets[0].data = [...humidityData];
+  waterChart.data.datasets[0].data    = [...waterData];
+  cnnChart.data.datasets[0].data      = [...cnnData];
   tempChart.update("none");
   humidityChart.update("none");
+  waterChart.update("none");
+  cnnChart.update("none");
 }
 
 let lastFloodState = "safe";
@@ -283,7 +300,13 @@ onValue(
 
     updateLiveSnapshot(data.live_snapshot_url);
     updateFloodSnapshot(data.flood_snapshot_url);
-    pushChartPoint(data.epoch_timestamp, data.temperature_c ?? 0, data.humidity_percent ?? 0);
+    pushChartPoint(
+      data.epoch_timestamp,
+      data.temperature_c ?? 0,
+      data.humidity_percent ?? 0,
+      data.water_depth_gap_cm ?? null,
+      parseFloat(data.cnn_confidence) || 0
+    );
   },
   (error) => {
     statusText.textContent = "ERROR: " + error.code;
@@ -301,6 +324,23 @@ onValue(ref(db, "snapshots"), (snap) => {
     .sort((a, b) => b.ts - a.ts);
   renderHistory(entries);
 });
+
+// ── View switcher (Dashboard / Data Analysis / Rationale) ──────────────────────
+const VIEWS = ["dashboard", "analysis", "rationale"];
+
+function switchView(name) {
+  if (!VIEWS.includes(name)) name = "dashboard";
+  views.forEach(v => v.classList.toggle("active", v.id === "view-" + name));
+  viewTabs.forEach(t => t.classList.toggle("active", t.dataset.view === name));
+  if (location.hash.slice(1) !== name) location.hash = name;  // deep-link / survive refresh
+  // Chart.js canvases laid out at 0px while hidden — recompute once visible.
+  if (name === "analysis") {
+    requestAnimationFrame(() => allCharts.forEach(c => c.resize()));
+  }
+}
+viewTabs.forEach(tab => tab.addEventListener("click", () => switchView(tab.dataset.view)));
+window.addEventListener("hashchange", () => switchView(location.hash.slice(1)));
+switchView(location.hash.slice(1) || "dashboard");
 
 // ── Footer year ──────────────────────────────────────────────────────────────
 const footerYear = document.getElementById("footer-year");

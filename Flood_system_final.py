@@ -242,6 +242,14 @@ live_snapshot_url       = None
 last_flood_snapshot_url = None  # persists the most recent confirmed flood snapshot
 slot_index              = 0     # cycles 0-719, one slot per 30s upload → 6 hours of history
 
+# Flood-status latch: once a flood is confirmed, hold "FLOOD ALERT ACTIVE" until the
+# ultrasonic stops breaching for FLOOD_HOLD_SECONDS. Prevents the status from flapping
+# every cycle and from getting stuck on "flood" after the water recedes.
+FLOOD_HOLD_SECONDS  = 30
+flood_latched       = False
+last_trigger_time   = 0.0
+last_cnn_confidence = 0.0
+
 # DHT11 noise filtering — EMA smoothing + last-valid holdover
 EMA_ALPHA      = 0.3   # 0=no smoothing, 1=no memory; 0.3 is a good balance for DHT11
 last_valid_temp = None
@@ -281,8 +289,9 @@ try:
 
         print(f"Metrics -> Distance: {distance:.1f}cm | Temp: {temperature}°C | Hum: {humidity}%")
 
-        system_status  = "Normal Conditions"
-        cnn_confidence = 0.0
+        # Carry the last detection confidence while the flood latch is held; otherwise
+        # no CNN ran this cycle, so report 0%.
+        cnn_confidence = last_cnn_confidence if flood_latched else 0.0
 
         # B2. Periodic live snapshot every 30 seconds (independent of flood status)
         if CAMERA_AVAILABLE and (time.time() - last_snapshot_time >= 30):
@@ -307,6 +316,7 @@ try:
 
         # C. Hardware Threshold Gating Trigger Evaluation Check
         if distance <= DISTANCE_THRESHOLD_CM:
+            last_trigger_time = time.time()
             print(f"⚠️ THRESHOLD BREACHED ({distance:.1f}cm) -> Running CNN Verification...")
             lcd_display_text("LEVEL BREACHED", 1)
 
@@ -323,24 +333,31 @@ try:
                 predictions = interpreter.get_tensor(output_details[0]['index'])[0]
                 top_prediction_idx = int(np.argmax(predictions))
                 cnn_confidence = float(predictions[top_prediction_idx]) * 100
-                system_status = LABELS[top_prediction_idx]
+                last_cnn_confidence = cnn_confidence
+                cnn_verdict = LABELS[top_prediction_idx]
 
-                if system_status == "FLOOD ALERT ACTIVE":
+                # CNN confirms the ultrasonic trigger -> latch the flood and grab the image
+                if cnn_verdict == "FLOOD ALERT ACTIVE":
+                    flood_latched = True
                     last_flood_snapshot_url = upload_snapshot(raw_frame, folder="flood_alerts")
             else:
-                system_status = "FLOOD ALERT ACTIVE"
+                flood_latched = True
                 cnn_confidence = 100.0
+                last_cnn_confidence = cnn_confidence
                 print("Pre-Stage System: Automatically asserting FLOOD confirmation flag.")
 
-            print(f"CNN Verdict Result: {system_status} ({cnn_confidence:.1f}%)")
+            print(f"CNN Verdict Result: {'FLOOD ALERT ACTIVE' if flood_latched else 'Normal Conditions'} ({cnn_confidence:.1f}%)")
 
-            # D. Update LCD status
-            if system_status == "FLOOD ALERT ACTIVE":
-                lcd_display_text("!! FLOOD ALERT !!", 1)
-            else:
-                lcd_display_text("STATUS: NORMAL", 1)
-        else:
-            lcd_display_text("STATUS: NORMAL", 1)
+        # Auto-clear the latch once the ultrasonic has stopped breaching for the hold
+        # window — so the status returns to SAFE instead of sticking on "flood".
+        if flood_latched and (time.time() - last_trigger_time > FLOOD_HOLD_SECONDS):
+            flood_latched       = False
+            last_cnn_confidence = 0.0
+            cnn_confidence      = 0.0
+
+        # D. Derive status from the latch and reflect it on the LCD
+        system_status = "FLOOD ALERT ACTIVE" if flood_latched else "Normal Conditions"
+        lcd_display_text("!! FLOOD ALERT !!" if flood_latched else "STATUS: NORMAL", 1)
 
         # Always push live telemetry every cycle so webapp stays current
         send_firebase_payload(system_status, cnn_confidence, distance, temperature, humidity,

@@ -18,11 +18,18 @@
 
       <div class="brand-stack">
         <h1 class="brand-title">Flood Sense</h1>
+        <p class="brand-tagline">Web-Based: Solar-Powered IoT Flood Warning Device Integrating CNN Image Processing</p>
         <p class="brand-dept">Department of Electrical Engineering · College of Engineering · Bicol University</p>
       </div>
 
       <img class="brand-logo brand-logo-right" src="img/buceng.png" alt="Bicol University College of Engineering" />
     </div>
+
+    <nav class="view-tabs" aria-label="Primary views">
+      <button class="view-tab active" type="button" data-view="dashboard">Dashboard</button>
+      <button class="view-tab" type="button" data-view="analysis">Data Analysis</button>
+      <button class="view-tab" type="button" data-view="rationale">Rationale</button>
+    </nav>
 
     <div class="status-strip">
       <div id="status-banner" class="status-banner">
@@ -42,6 +49,8 @@
   </header>
 
   <main>
+    <!-- ══════════ DASHBOARD VIEW ══════════ -->
+    <div id="view-dashboard" class="view active">
     <!-- ── Sensor Cards ── -->
     <section class="sensor-grid" aria-label="Live sensor readings">
       <article class="card card--water">
@@ -89,24 +98,6 @@
       </article>
     </section>
 
-    <!-- ── Climate Charts ── -->
-    <section class="chart-section" aria-label="Climate trends">
-      <div class="chart-card">
-        <div class="chart-head">
-          <span class="chart-label">Temperature Trend</span>
-          <span class="chart-unit chart-unit--temp">°C</span>
-        </div>
-        <canvas id="temp-chart"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-head">
-          <span class="chart-label">Humidity Trend</span>
-          <span class="chart-unit chart-unit--humidity">%</span>
-        </div>
-        <canvas id="humidity-chart"></canvas>
-      </div>
-    </section>
-
     <!-- ── Live Camera Feed (periodic, every 30s) ── -->
     <section class="snapshot-section">
       <h2><span class="section-dot" style="background: var(--accent-cnn)"></span>Latest Snapshot</h2>
@@ -141,11 +132,56 @@
         <img id="flood-snapshot" src="" alt="Flood event snapshot" class="snapshot-img hidden" />
       </div>
     </section>
+    </div><!-- /view-dashboard -->
+
+    <!-- ══════════ DATA ANALYSIS VIEW ══════════ -->
+    <div id="view-analysis" class="view">
+      <section class="chart-section" aria-label="Climate &amp; sensor trends">
+        <div class="chart-card">
+          <div class="chart-head">
+            <span class="chart-label">Temperature Trend</span>
+            <span class="chart-unit chart-unit--temp">°C</span>
+          </div>
+          <canvas id="temp-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <span class="chart-label">Humidity Trend</span>
+            <span class="chart-unit chart-unit--humidity">%</span>
+          </div>
+          <canvas id="humidity-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <span class="chart-label">Water Level Trend</span>
+            <span class="chart-unit chart-unit--water">cm</span>
+          </div>
+          <canvas id="water-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <span class="chart-label">CNN Confidence Trend</span>
+            <span class="chart-unit chart-unit--cnn">%</span>
+          </div>
+          <canvas id="cnn-chart"></canvas>
+        </div>
+      </section>
+    </div><!-- /view-analysis -->
+
+    <!-- ══════════ RATIONALE VIEW ══════════ -->
+    <div id="view-rationale" class="view">
+      <section class="rationale-section" aria-label="Project rationale">
+        <h2><span class="section-dot" style="background: var(--accent-cnn)"></span>Rationale</h2>
+        <div class="rationale-card">
+          <p>This web interface serves as the central monitoring hub for a <strong>Web-Based: Solar-Powered IoT Flood Warning Device Integrating CNN Image Processing</strong>. By combining real-time environmental data collection via IoT sensors with localized image analysis using Convolutional Neural Networks, the system provides high-accuracy, climate-resilient early flood warnings to vulnerable communities.</p>
+        </div>
+      </section>
+    </div><!-- /view-rationale -->
   </main>
 
   <footer class="site-footer">
     <div class="footer-inner">
-      <p class="footer-authors">AZANZA, R.A.P · ONOYA, M.L.C · OPEDA, R.M · NAZ, K.P</p>
+      <p class="footer-authors">AZANZA, RAP • NAZ, KP • ONOYA, MLC • OPEDA, RMB</p>
       <p class="footer-dept">Department of Electrical Engineering · College of Engineering · Bicol University</p>
       <p class="footer-meta">Flood Sense · Edge-AI Flood Monitoring · © <span id="footer-year">2025</span></p>
     </div>
