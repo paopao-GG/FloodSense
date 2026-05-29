@@ -90,6 +90,24 @@ const tempChart     = makeChart(tempCanvas,     "Temperature °C", "#f59e0b", 15
 const humidityChart = makeChart(humidityCanvas, "Humidity %",     "#6366f1",  0, 100);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+async function downloadImage(url) {
+  try {
+    const res  = await fetch(url);
+    const blob = await res.blob();
+    const a    = document.createElement("a");
+    a.href     = URL.createObjectURL(blob);
+    a.download = "floodsense_" + Date.now() + ".jpg";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    console.error("Download failed:", e);
+  }
+}
+
+window.downloadLightboxImage = function () {
+  if (lightboxImg.src) downloadImage(lightboxImg.src);
+};
+
 function formatTimestamp(epoch) {
   if (!epoch) return "—";
   return new Date(epoch * 1000).toLocaleString();
@@ -122,8 +140,15 @@ function renderHistory(entries) {
     label.className = "thumb-time";
     label.textContent = new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+    const dlBtn = document.createElement("button");
+    dlBtn.className   = "thumb-dl";
+    dlBtn.title       = "Download";
+    dlBtn.textContent = "⬇";
+    dlBtn.onclick = (e) => { e.stopPropagation(); downloadImage(url); };
+
     wrapper.appendChild(img);
     wrapper.appendChild(label);
+    wrapper.appendChild(dlBtn);
     snapshotHistory.appendChild(wrapper);
   });
 }

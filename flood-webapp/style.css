@@ -253,6 +253,44 @@ main {
   opacity: 0.9;
 }
 
+/* ── Collapsible History ── */
+details#history-details {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.history-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  list-style: none;
+  user-select: none;
+}
+
+.history-summary::-webkit-details-marker { display: none; }
+
+.history-summary::before {
+  content: "▶";
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+
+details[open] .history-summary::before {
+  transform: rotate(90deg);
+}
+
+details[open] #snapshot-history {
+  padding: 0.75rem;
+}
+
 /* ── History Gallery ── */
 .snapshot-gallery {
   display: grid;
@@ -294,6 +332,25 @@ main {
   transform: scale(1.03);
 }
 
+.thumb-dl {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.thumb-wrapper:hover .thumb-dl {
+  opacity: 1;
+}
+
 /* ── Lightbox ── */
 .lightbox {
   position: fixed;
@@ -323,6 +380,23 @@ main {
   font-size: 1.5rem;
   cursor: pointer;
   line-height: 1;
+}
+
+.lightbox-download {
+  position: absolute;
+  top: 1.5rem;
+  right: 4rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.lightbox-download:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .hidden {

@@ -58,14 +58,18 @@
 
     <!-- Live Camera Feed (periodic, every 30s) -->
     <section class="snapshot-section">
-      <h2>Live Camera Feed</h2>
+      <h2>Latest Snapshot</h2>
       <div id="live-snapshot-container" class="snapshot-main">
-        <p id="no-live-msg" class="no-snapshot">Live snapshots upload every 30 seconds.</p>
+        <p id="no-live-msg" class="no-snapshot">Camera snapshot uploads every 30 seconds. Waiting for first upload...</p>
         <img id="live-snapshot" src="" alt="Live camera snapshot" class="snapshot-img hidden" />
       </div>
 
-      <h2>Last 6 Hours <span class="history-count" id="history-count"></span></h2>
-      <div id="snapshot-history" class="snapshot-gallery"></div>
+      <details id="history-details">
+        <summary class="history-summary">
+          Last 6 Hours <span class="history-count" id="history-count"></span>
+        </summary>
+        <div id="snapshot-history" class="snapshot-gallery"></div>
+      </details>
     </section>
 
     <!-- Flood Alert Section -->
@@ -84,6 +88,7 @@
   <!-- Lightbox overlay for full-size snapshot view -->
   <div id="lightbox" class="lightbox hidden" onclick="closeLightbox()">
     <img id="lightbox-img" src="" alt="Full size snapshot" />
+    <button class="lightbox-download" onclick="downloadLightboxImage()">&#8595; Download</button>
     <button class="lightbox-close" onclick="closeLightbox()">✕</button>
   </div>
 
