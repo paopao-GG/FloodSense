@@ -206,6 +206,25 @@ main {
   gap: 0.75rem;
 }
 
+.thumb-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.thumb-time {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
 .gallery-thumb {
   aspect-ratio: 4/3;
   object-fit: cover;

@@ -26,9 +26,10 @@ ECHO_PIN = 24        # GPIO 24
 # Wakes up the CNN when water rises closer than this value
 DISTANCE_THRESHOLD_CM = 30.0  
 
-# Firebase REST API Realtime Database Node Endpoint URL
-# (Replace 'your-project-id' with your actual Firebase project ID)
-WEB_URL = "https://floodsense-ffce3-default-rtdb.asia-southeast1.firebasedatabase.app/flood_telemetry.json"
+# Firebase REST API Realtime Database — base URL + derived endpoints
+FIREBASE_BASE = "https://floodsense-ffce3-default-rtdb.asia-southeast1.firebasedatabase.app"
+WEB_URL       = f"{FIREBASE_BASE}/flood_telemetry.json"
+SNAP_BASE_URL = f"{FIREBASE_BASE}/snapshots"
 
 # Cloudinary credentials — copy from cloudinary.com → Dashboard
 CLOUDINARY_CLOUD_NAME = "dqcqkpjcc"
@@ -188,24 +189,16 @@ def get_ultrasonic_distance():
 
     return ((stop_time - start_time) * 34300) / 2
 
-def get_location():
-    try:
-        r = requests.get("http://ip-api.com/json", timeout=5)
-        d = r.json()
-        if d.get("status") == "success":
-            return f"{d['city']}, {d['regionName']}, {d['country']}"
-    except Exception:
-        pass
-    return "Unknown Location"
-
-def upload_snapshot(frame, folder="flood_snapshots"):
+def upload_snapshot(frame, folder="flood_snapshots", overwrite_id=None):
     try:
         _, buf = cv2.imencode('.jpg', frame)
-        result = cloudinary.uploader.upload(
-            buf.tobytes(),
-            folder=folder,
-            resource_type="image"
-        )
+        kwargs = {"folder": folder, "resource_type": "image"}
+        if overwrite_id:
+            # Overwrite a fixed slot — no storage accumulation for live feed
+            kwargs["public_id"] = overwrite_id
+            kwargs["overwrite"] = True
+            kwargs["invalidate"] = True  # bust Cloudinary CDN cache
+        result = cloudinary.uploader.upload(buf.tobytes(), **kwargs)
         print(f"📷 Snapshot uploaded: {result['secure_url']}")
         return result["secure_url"]
     except Exception as e:
@@ -236,9 +229,7 @@ def send_firebase_payload(status, confidence, distance, temp, hum,
 # =====================================================================
 # 4. MAIN TELEMETRY WORKLOOP
 # =====================================================================
-print("📍 Detecting location...")
-LOCATION = get_location()
-print(f"📍 Location: {LOCATION}")
+LOCATION = "Felicidad Subdivision, Sugcad, Polangui, Albay"
 
 print("\n🚀 System active. Running monitoring routine loop...")
 lcd_display_text("SYSTEM ARMED", 1)
@@ -246,9 +237,10 @@ lcd_display_text("MONITORING LIVE", 2)
 lcd_display_text("", 3)
 lcd_display_text("", 4)
 
-last_snapshot_time     = 0
-live_snapshot_url      = None
+last_snapshot_time      = 0
+live_snapshot_url       = None
 last_flood_snapshot_url = None  # persists the most recent confirmed flood snapshot
+slot_index              = 0     # cycles 0-719, one slot per 30s upload → 6 hours of history
 
 try:
     while True:
@@ -275,7 +267,22 @@ try:
         # B2. Periodic live snapshot every 30 seconds (independent of flood status)
         if CAMERA_AVAILABLE and (time.time() - last_snapshot_time >= 30):
             raw_frame = picam.capture_array()
-            live_snapshot_url = upload_snapshot(raw_frame, folder="flood_live")
+            slot_id = f"slot_{slot_index:03d}"
+            live_snapshot_url = upload_snapshot(
+                raw_frame,
+                folder="flood_live",
+                overwrite_id=f"flood_live/{slot_id}"
+            )
+            if live_snapshot_url:
+                try:
+                    requests.put(
+                        f"{SNAP_BASE_URL}/{slot_id}.json",
+                        json={"url": live_snapshot_url, "ts": time.time()},
+                        timeout=2
+                    )
+                except Exception as e:
+                    print(f"📡 Snapshot history sync error: {e}")
+            slot_index = (slot_index + 1) % 720
             last_snapshot_time = time.time()
 
         # C. Hardware Threshold Gating Trigger Evaluation Check

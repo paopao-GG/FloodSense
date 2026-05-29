@@ -38,10 +38,7 @@ const noFloodMsg            = document.getElementById("no-flood-msg");
 const lightbox              = document.getElementById("lightbox");
 const lightboxImg           = document.getElementById("lightbox-img");
 
-// Keep last 10 live snapshot URLs (persisted across reloads)
-const HISTORY_KEY = "flood_live_history";
-const MAX_HISTORY = 10;
-let liveUrls = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+const SIX_HOURS = 6 * 3600;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatTimestamp(epoch) {
@@ -59,32 +56,37 @@ window.closeLightbox = function () {
   lightboxImg.src = "";
 };
 
-function renderHistory() {
+function renderHistory(entries) {
   snapshotHistory.innerHTML = "";
-  historyCount.textContent = liveUrls.length > 0 ? `${liveUrls.length}` : "";
-  liveUrls.forEach((url) => {
+  historyCount.textContent = entries.length > 0 ? `${entries.length}` : "";
+  entries.forEach(({ url, ts }) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "thumb-wrapper";
+
     const img = document.createElement("img");
     img.src = url;
     img.alt = "Snapshot";
     img.className = "gallery-thumb";
     img.onclick = () => openLightbox(url);
-    snapshotHistory.appendChild(img);
+
+    const label = document.createElement("span");
+    label.className = "thumb-time";
+    label.textContent = new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    wrapper.appendChild(img);
+    wrapper.appendChild(label);
+    snapshotHistory.appendChild(wrapper);
   });
 }
 
 function updateLiveSnapshot(url) {
-  if (!url || liveSnapshot.src === url) return;
-  liveSnapshot.src = url;
+  if (!url) return;
+  // Append cache-bust so the browser re-fetches the overwritten Cloudinary slot
+  const busted = url.includes("?") ? url : url + "?t=" + Date.now();
+  liveSnapshot.src = busted;
   liveSnapshot.classList.remove("hidden");
   noLiveMsg.classList.add("hidden");
   liveSnapshot.onclick = () => openLightbox(url);
-
-  if (liveUrls[0] !== url) {
-    liveUrls.unshift(url);
-    if (liveUrls.length > MAX_HISTORY) liveUrls.pop();
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(liveUrls));
-    renderHistory();
-  }
 }
 
 function updateFloodSnapshot(url) {
@@ -132,5 +134,13 @@ onValue(
   }
 );
 
-// Render any saved history on load
-renderHistory();
+// ── Snapshot history listener (separate node, 6-hour rolling window) ─────────
+onValue(ref(db, "snapshots"), (snap) => {
+  const data = snap.val();
+  if (!data) return;
+  const cutoff = Date.now() / 1000 - SIX_HOURS;
+  const entries = Object.values(data)
+    .filter(e => e && e.ts > cutoff)
+    .sort((a, b) => b.ts - a.ts);
+  renderHistory(entries);
+});
