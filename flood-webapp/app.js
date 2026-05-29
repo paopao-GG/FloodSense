@@ -49,7 +49,20 @@ const chartLabels  = [];
 const tempData     = [];
 const humidityData = [];
 
+function hexToRgba(hex, alpha) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function makeChart(canvas, label, color, suggestedMin, suggestedMax) {
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+  gradient.addColorStop(0, hexToRgba(color, 0.35));
+  gradient.addColorStop(1, hexToRgba(color, 0));
+
   return new Chart(canvas, {
     type: "line",
     data: {
@@ -58,28 +71,46 @@ function makeChart(canvas, label, color, suggestedMin, suggestedMax) {
         label,
         data: [],
         borderColor: color,
-        backgroundColor: color + "22",
-        borderWidth: 2,
+        backgroundColor: gradient,
+        borderWidth: 2.5,
         pointRadius: 0,
-        tension: 0.3,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: "#0a0c14",
+        pointHoverBorderWidth: 2,
+        tension: 0.35,
         fill: true,
+        spanGaps: true,
       }]
     },
     options: {
       animation: false,
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "rgba(15,18,32,0.95)",
+          borderColor: "#2a3050",
+          borderWidth: 1,
+          titleColor: "#eef0fb",
+          bodyColor: "#bcc1e0",
+          padding: 10,
+          cornerRadius: 8,
+          displayColors: false,
+        }
+      },
       scales: {
         x: {
-          ticks: { color: "#7b82a8", maxTicksLimit: 6, font: { size: 11 } },
-          grid:  { color: "#2e3350" },
+          ticks: { color: "#7b82a8", maxTicksLimit: 6, font: { size: 10, family: "Inter" } },
+          grid:  { color: "rgba(42,48,80,0.5)", drawBorder: false },
         },
         y: {
           suggestedMin,
           suggestedMax,
-          ticks: { color: "#7b82a8", font: { size: 11 } },
-          grid:  { color: "#2e3350" },
+          ticks: { color: "#7b82a8", font: { size: 10, family: "Inter" } },
+          grid:  { color: "rgba(42,48,80,0.5)", drawBorder: false },
         }
       }
     }
@@ -193,18 +224,46 @@ function pushChartPoint(ts, temp, hum) {
   humidityChart.update("none");
 }
 
+let lastFloodState = "safe";
+
 function setStatus(statusStr) {
   const isFlood = statusStr?.includes("FLOOD");
+  lastFloodState = isFlood ? "alert" : "normal";
 
-  // Main status banner
-  statusBanner.className = "status-banner " + (isFlood ? "alert" : "normal");
+  statusBanner.className = "status-banner " + lastFloodState;
   statusText.textContent = isFlood ? "⚠ FLOOD DETECTED" : "SAFE";
 
-  // Flood section chip + border
   floodStatusChip.textContent = isFlood ? "FLOOD DETECTED" : "SAFE";
   floodStatusChip.className   = "flood-chip " + (isFlood ? "flood" : "safe");
   floodSection.className      = "flood-section " + (isFlood ? "active" : "");
 }
+
+// ── Stale-data detector ──────────────────────────────────────────────────────
+// If no Firebase update for >60s, dim the status pill to "stale" so operators
+// know they're looking at frozen data.
+const STALE_AFTER_MS = 60_000;
+let lastUpdateMs = 0;
+let staleCheckTimer = null;
+
+function markFresh() {
+  lastUpdateMs = Date.now();
+  if (statusBanner.classList.contains("stale")) {
+    statusBanner.classList.remove("stale");
+    statusBanner.classList.add(lastFloodState);
+    statusText.textContent = lastFloodState === "alert" ? "⚠ FLOOD DETECTED" : "SAFE";
+  }
+}
+
+function checkStale() {
+  if (!lastUpdateMs) return;
+  if (Date.now() - lastUpdateMs > STALE_AFTER_MS && !statusBanner.classList.contains("stale")) {
+    statusBanner.classList.remove("normal", "alert");
+    statusBanner.classList.add("stale");
+    statusText.textContent = "STALE · NO RECENT DATA";
+  }
+}
+
+staleCheckTimer = setInterval(checkStale, 10_000);
 
 // ── Real-time listener ────────────────────────────────────────────────────────
 onValue(
@@ -214,12 +273,13 @@ onValue(
     if (!data) return;
 
     setStatus(data.status);
+    markFresh();
     if (data.location) locationEl.textContent = data.location;
     waterLevel.textContent    = data.water_depth_gap_cm != null ? data.water_depth_gap_cm.toFixed(1) : "—";
     temperature.textContent   = data.temperature_c      != null ? data.temperature_c                 : "—";
     humidity.textContent      = data.humidity_percent   != null ? data.humidity_percent               : "—";
     cnnConfidence.textContent = data.cnn_confidence     ?? "—";
-    lastUpdated.textContent   = "Last updated: " + formatTimestamp(data.epoch_timestamp);
+    lastUpdated.textContent   = "Last updated " + formatTimestamp(data.epoch_timestamp);
 
     updateLiveSnapshot(data.live_snapshot_url);
     updateFloodSnapshot(data.flood_snapshot_url);
@@ -241,3 +301,7 @@ onValue(ref(db, "snapshots"), (snap) => {
     .sort((a, b) => b.ts - a.ts);
   renderHistory(entries);
 });
+
+// ── Footer year ──────────────────────────────────────────────────────────────
+const footerYear = document.getElementById("footer-year");
+if (footerYear) footerYear.textContent = new Date().getFullYear();

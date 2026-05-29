@@ -3,64 +3,118 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Flood Sense</title>
+  <meta name="description" content="Flood Sense — real-time AI-powered flood monitoring dashboard." />
+  <title>Flood Sense · Real-time Monitoring</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" />
+  <link rel="icon" href="img/iiee.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>Flood Sense</h1>
-    <div class="credits">
-      <p class="credits-authors">AZANZA, R.A.P &nbsp;|&nbsp; ONOYA, M.L.C &nbsp;|&nbsp; OPEDA, R.M &nbsp;|&nbsp; NAZ, K.P</p>
-      <p class="credits-dept">Department of Electrical Engineering &mdash; College of Engineering &mdash; Bicol University</p>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <img class="brand-logo brand-logo-left" src="img/iiee.png" alt="IIEE — Institute of Integrated Electrical Engineers" />
+
+      <div class="brand-stack">
+        <h1 class="brand-title">Flood Sense</h1>
+        <p class="brand-dept">Department of Electrical Engineering · College of Engineering · Bicol University</p>
+      </div>
+
+      <img class="brand-logo brand-logo-right" src="img/buceng.png" alt="Bicol University College of Engineering" />
     </div>
-    <div id="status-banner" class="status-banner">
-      <span id="status-text">CONNECTING...</span>
+
+    <div class="status-strip">
+      <div id="status-banner" class="status-banner">
+        <span id="status-text">CONNECTING…</span>
+      </div>
+      <div class="status-meta">
+        <span class="meta-item" id="location-line">
+          <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span id="location">—</span>
+        </span>
+        <span class="meta-item" id="last-updated-wrap">
+          <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span id="last-updated">—</span>
+        </span>
+      </div>
     </div>
-    <p id="location-line" class="location-line">📍 <span id="location">—</span></p>
-    <p id="last-updated" class="last-updated">Last updated: —</p>
   </header>
 
   <main>
-    <div class="sensor-grid">
-      <div class="card">
-        <div class="card-label">Water Level</div>
+    <!-- ── Sensor Cards ── -->
+    <section class="sensor-grid" aria-label="Live sensor readings">
+      <article class="card card--water">
+        <div class="card-head">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s7 7.5 7 12a7 7 0 1 1-14 0c0-4.5 7-12 7-12z"/></svg>
+          </span>
+          <span class="card-label">Water Level</span>
+        </div>
         <div class="card-value" id="water-level">—</div>
         <div class="card-unit">cm from sensor</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Temperature</div>
+      </article>
+
+      <article class="card card--temp">
+        <div class="card-head">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V4a2 2 0 0 0-4 0v10.76a4 4 0 1 0 4 0z"/></svg>
+          </span>
+          <span class="card-label">Temperature</span>
+        </div>
         <div class="card-value" id="temperature">—</div>
         <div class="card-unit">°C</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Humidity</div>
+      </article>
+
+      <article class="card card--humidity">
+        <div class="card-head">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s5 5.5 5 10a5 5 0 1 1-10 0c0-4.5 5-10 5-10z"/><path d="M9 14a3 3 0 0 0 3 3"/></svg>
+          </span>
+          <span class="card-label">Humidity</span>
+        </div>
         <div class="card-value" id="humidity">—</div>
         <div class="card-unit">%</div>
-      </div>
-      <div class="card">
-        <div class="card-label">CNN Confidence</div>
+      </article>
+
+      <article class="card card--cnn">
+        <div class="card-head">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>
+          </span>
+          <span class="card-label">CNN Confidence</span>
+        </div>
         <div class="card-value" id="cnn-confidence">—</div>
         <div class="card-unit">last detection</div>
-      </div>
-    </div>
+      </article>
+    </section>
 
-    <!-- Climate Charts -->
-    <section class="chart-section">
+    <!-- ── Climate Charts ── -->
+    <section class="chart-section" aria-label="Climate trends">
       <div class="chart-card">
-        <div class="chart-label">Temperature (°C)</div>
+        <div class="chart-head">
+          <span class="chart-label">Temperature Trend</span>
+          <span class="chart-unit chart-unit--temp">°C</span>
+        </div>
         <canvas id="temp-chart"></canvas>
       </div>
       <div class="chart-card">
-        <div class="chart-label">Humidity (%)</div>
+        <div class="chart-head">
+          <span class="chart-label">Humidity Trend</span>
+          <span class="chart-unit chart-unit--humidity">%</span>
+        </div>
         <canvas id="humidity-chart"></canvas>
       </div>
     </section>
 
-    <!-- Live Camera Feed (periodic, every 30s) -->
+    <!-- ── Live Camera Feed (periodic, every 30s) ── -->
     <section class="snapshot-section">
-      <h2>Latest Snapshot</h2>
+      <h2><span class="section-dot" style="background: var(--accent-cnn)"></span>Latest Snapshot</h2>
       <div id="live-snapshot-container" class="snapshot-main">
-        <p id="no-live-msg" class="no-snapshot">Camera snapshot uploads every 30 seconds. Waiting for first upload...</p>
+        <p id="no-live-msg" class="no-snapshot">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 6l2-3h4l2 3"/></svg>
+          Camera snapshot uploads every 30 seconds. Waiting for first upload…
+        </p>
         <img id="live-snapshot" src="" alt="Live camera snapshot" class="snapshot-img hidden" />
       </div>
 
@@ -72,18 +126,30 @@
       </details>
     </section>
 
-    <!-- Flood Alert Section -->
+    <!-- ── Flood Alert Section ── -->
     <section class="flood-section" id="flood-section">
       <h2>
+        <span class="section-dot section-dot--flood"></span>
         Flood Status
         <span id="flood-status-chip" class="flood-chip safe">SAFE</span>
       </h2>
       <div id="flood-snapshot-container" class="snapshot-main">
-        <p id="no-flood-msg" class="no-snapshot">No flood events recorded. This section will update when a flood is detected.</p>
+        <p id="no-flood-msg" class="no-snapshot">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s-8-4.5-8-12a8 8 0 1 1 16 0c0 7.5-8 12-8 12z"/><path d="M9 11l2 2 4-4"/></svg>
+          No flood events recorded. This section will update when a flood is detected.
+        </p>
         <img id="flood-snapshot" src="" alt="Flood event snapshot" class="snapshot-img hidden" />
       </div>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p class="footer-authors">AZANZA, R.A.P · ONOYA, M.L.C · OPEDA, R.M · NAZ, K.P</p>
+      <p class="footer-dept">Department of Electrical Engineering · College of Engineering · Bicol University</p>
+      <p class="footer-meta">Flood Sense · Edge-AI Flood Monitoring · © <span id="footer-year">2025</span></p>
+    </div>
+  </footer>
 
   <!-- Lightbox overlay for full-size snapshot view -->
   <div id="lightbox" class="lightbox hidden" onclick="closeLightbox()">
