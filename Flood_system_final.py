@@ -242,16 +242,36 @@ live_snapshot_url       = None
 last_flood_snapshot_url = None  # persists the most recent confirmed flood snapshot
 slot_index              = 0     # cycles 0-719, one slot per 30s upload → 6 hours of history
 
+# DHT11 noise filtering — EMA smoothing + last-valid holdover
+EMA_ALPHA      = 0.3   # 0=no smoothing, 1=no memory; 0.3 is a good balance for DHT11
+last_valid_temp = None
+last_valid_hum  = None
+ema_temp        = None
+ema_hum         = None
+
 try:
     while True:
         # A. Fetch Climate Telemetry via CircuitPython Wrapper
         try:
-            temperature = dht_device.temperature
-            humidity = dht_device.humidity
-            if temperature is None or humidity is None:
-                temperature, humidity = 0.0, 0.0
+            raw_temp = dht_device.temperature
+            raw_hum  = dht_device.humidity
+            if raw_temp is not None and raw_hum is not None and raw_temp != 0 and raw_hum != 0:
+                last_valid_temp = raw_temp
+                last_valid_hum  = raw_hum
         except RuntimeError:
-            temperature, humidity = 0.0, 0.0
+            pass  # DHT11 checksum error — keep last valid reading
+
+        # Hold last valid reading instead of zeroing on failure
+        temperature = last_valid_temp if last_valid_temp is not None else 0.0
+        humidity    = last_valid_hum  if last_valid_hum  is not None else 0.0
+
+        # EMA smoothing — dampens sensor jitter without introducing lag
+        if temperature != 0:
+            ema_temp    = temperature if ema_temp is None else EMA_ALPHA * temperature + (1 - EMA_ALPHA) * ema_temp
+            temperature = round(ema_temp, 1)
+        if humidity != 0:
+            ema_hum  = humidity if ema_hum is None else EMA_ALPHA * humidity + (1 - EMA_ALPHA) * ema_hum
+            humidity = round(ema_hum, 1)
 
         # B. Fetch Water Line Distance via Pulse Timings
         try:

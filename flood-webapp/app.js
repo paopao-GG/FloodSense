@@ -14,6 +14,7 @@ const firebaseConfig = {
 
 import { initializeApp }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, onValue }  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import Chart                          from "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/auto/+esm";
 
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
@@ -37,8 +38,56 @@ const floodSnapshot         = document.getElementById("flood-snapshot");
 const noFloodMsg            = document.getElementById("no-flood-msg");
 const lightbox              = document.getElementById("lightbox");
 const lightboxImg           = document.getElementById("lightbox-img");
+const tempCanvas            = document.getElementById("temp-chart");
+const humidityCanvas        = document.getElementById("humidity-chart");
 
 const SIX_HOURS = 6 * 3600;
+
+// ── Chart setup ───────────────────────────────────────────────────────────────
+const MAX_CHART_POINTS = 60;
+const chartLabels  = [];
+const tempData     = [];
+const humidityData = [];
+
+function makeChart(canvas, label, color, suggestedMin, suggestedMax) {
+  return new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: chartLabels,
+      datasets: [{
+        label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color + "22",
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: "#7b82a8", maxTicksLimit: 6, font: { size: 11 } },
+          grid:  { color: "#2e3350" },
+        },
+        y: {
+          suggestedMin,
+          suggestedMax,
+          ticks: { color: "#7b82a8", font: { size: 11 } },
+          grid:  { color: "#2e3350" },
+        }
+      }
+    }
+  });
+}
+
+const tempChart     = makeChart(tempCanvas,     "Temperature °C", "#f59e0b", 15, 45);
+const humidityChart = makeChart(humidityCanvas, "Humidity %",     "#6366f1",  0, 100);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatTimestamp(epoch) {
@@ -97,6 +146,28 @@ function updateFloodSnapshot(url) {
   floodSnapshot.onclick = () => openLightbox(url);
 }
 
+function pushChartPoint(ts, temp, hum) {
+  const timeLabel = ts
+    ? new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    : "—";
+
+  if (chartLabels.length >= MAX_CHART_POINTS) {
+    chartLabels.shift();
+    tempData.shift();
+    humidityData.shift();
+  }
+  chartLabels.push(timeLabel);
+
+  // null renders as a gap in the line rather than a zero spike
+  tempData.push(temp !== 0 ? temp : null);
+  humidityData.push(hum !== 0 ? hum : null);
+
+  tempChart.data.datasets[0].data     = [...tempData];
+  humidityChart.data.datasets[0].data = [...humidityData];
+  tempChart.update("none");
+  humidityChart.update("none");
+}
+
 function setStatus(statusStr) {
   const isFlood = statusStr?.includes("FLOOD");
 
@@ -127,6 +198,7 @@ onValue(
 
     updateLiveSnapshot(data.live_snapshot_url);
     updateFloodSnapshot(data.flood_snapshot_url);
+    pushChartPoint(data.epoch_timestamp, data.temperature_c ?? 0, data.humidity_percent ?? 0);
   },
   (error) => {
     statusText.textContent = "ERROR: " + error.code;

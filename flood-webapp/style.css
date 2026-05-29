@@ -141,6 +141,41 @@ main {
   color: var(--text-muted);
 }
 
+/* ── Climate Charts ── */
+.chart-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.chart-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.chart-card canvas {
+  height: 160px !important;
+}
+
+@media (max-width: 600px) {
+  .chart-section {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Snapshot Section ── */
 .snapshot-section {
   display: flex;
