@@ -79,6 +79,9 @@ const firebaseConfig = {
 
 - The webapp listens to two nodes: **`flood_telemetry`** (live readings) and
   **`snapshots`** (the 6-hour image history).
+- It also **writes** **`readings/<epoch minute>`**: one reading per minute while
+  any dashboard is open. **Export XLSX** on the Data Analysis tab downloads it.
+  The node must be listed in the Firebase rules ([DEPLOYMENT.md](DEPLOYMENT.md) Step 11).
 - These field names must match what the Pi writes in
   [`Flood_system_final.py`](../Flood_system_final.py) (`send_firebase_payload`):
   `status`, `water_depth_gap_cm`, `temperature_c`, `humidity_percent`,

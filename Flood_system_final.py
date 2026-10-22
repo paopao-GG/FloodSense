@@ -222,6 +222,7 @@ def send_firebase_payload(status, confidence, distance, temp, hum,
         payload["flood_snapshot_url"] = flood_snapshot_url
     try:
         response = requests.put(WEB_URL, json=payload, timeout=2)
+        response.raise_for_status()  # 401 = Firebase rules rejected the write
         print(f"📡 Firebase Cloud Updated! HTTP Status: {response.status_code}")
     except Exception as e:
         print(f"📡 Firebase Gateway Sync Error: {e}")
@@ -308,7 +309,7 @@ try:
                         f"{SNAP_BASE_URL}/{slot_id}.json",
                         json={"url": live_snapshot_url, "ts": time.time()},
                         timeout=2
-                    )
+                    ).raise_for_status()
                 except Exception as e:
                     print(f"📡 Snapshot history sync error: {e}")
             slot_index = (slot_index + 1) % 720

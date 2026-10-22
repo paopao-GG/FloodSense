@@ -368,6 +368,36 @@ main {
   letter-spacing: 0.04em;
 }
 
+/* ─ Export bar (Data Analysis) ─ */
+.export-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: -1.25rem; /* sit closer to the charts than the view's 2.25rem gap */
+}
+
+.export-note { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+
+.export-btn {
+  appearance: none;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: rgba(56,189,248,0.16);
+  border: 1px solid rgba(56,189,248,0.45);
+  border-radius: 999px;
+  padding: 0.55rem 1.05rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.export-btn:hover    { background: rgba(56,189,248,0.26); }
+.export-btn:disabled { opacity: 0.6; cursor: wait; }
+
 /* ─ Charts ─ */
 .chart-section {
   display: grid;

@@ -13,7 +13,7 @@ const firebaseConfig = {
 };
 
 import { initializeApp }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue }  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import Chart                          from "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/auto/+esm";
 
 const app = initializeApp(firebaseConfig);
@@ -44,6 +44,8 @@ const waterCanvas           = document.getElementById("water-chart");
 const cnnCanvas             = document.getElementById("cnn-chart");
 const viewTabs              = document.querySelectorAll(".view-tab");
 const views                 = document.querySelectorAll(".view");
+const exportBtn             = document.getElementById("export-btn");
+const exportNote            = document.getElementById("export-note");
 
 const SIX_HOURS = 6 * 3600;
 
@@ -282,6 +284,28 @@ function checkStale() {
 
 staleCheckTimer = setInterval(checkStale, 10_000);
 
+// ── Reading log (one row per minute, shared by every open dashboard) ─────────
+// ponytail: browsers do the logging because the Pi only overwrites the latest
+// reading, so there are gaps while no dashboard is open. For 24/7 history, have
+// the Pi PUT the same readings/<minute> key and delete this.
+let lastLoggedMinute = 0;
+
+function logReading(data) {
+  // Keyed by the Pi's timestamp: tabs open at the same time write the same
+  // slot, and a stale reading never adds a new row.
+  const minute = Math.floor(data.epoch_timestamp / 60);
+  if (!minute || minute === lastLoggedMinute) return;
+  lastLoggedMinute = minute;
+  set(ref(db, `readings/${minute}`), {
+    ts:       data.epoch_timestamp,
+    status:   data.status             ?? null,
+    water_cm: data.water_depth_gap_cm ?? null,
+    temp_c:   data.temperature_c      ?? null,
+    humidity: data.humidity_percent   ?? null,
+    cnn:      data.cnn_confidence     ?? null,
+  }).catch((e) => console.error("Reading log failed:", e.code, e.message));
+}
+
 // ── Real-time listener ────────────────────────────────────────────────────────
 onValue(
   ref(db, "flood_telemetry"),
@@ -291,6 +315,7 @@ onValue(
 
     setStatus(data.status);
     markFresh();
+    logReading(data);
     if (data.location) locationEl.textContent = data.location;
     waterLevel.textContent    = data.water_depth_gap_cm != null ? data.water_depth_gap_cm.toFixed(1) : "—";
     temperature.textContent   = data.temperature_c      != null ? data.temperature_c                 : "—";
@@ -324,6 +349,46 @@ onValue(ref(db, "snapshots"), (snap) => {
     .sort((a, b) => b.ts - a.ts);
   renderHistory(entries);
 });
+
+// ── Export XLSX ──────────────────────────────────────────────────────────────
+async function exportReadings() {
+  exportBtn.disabled = true;
+  exportBtn.textContent = "Exporting…";
+  try {
+    // ponytail: pulls the whole node (~1,440 rows/day); add an
+    // orderByKey().startAt() date range when exports get slow.
+    const snap = await get(ref(db, "readings"));
+    const readings = Object.values(snap.val() || {}).sort((a, b) => a.ts - b.ts);
+    if (!readings.length) {
+      exportNote.textContent = "No readings saved yet. Keep the dashboard open for a minute.";
+      return;
+    }
+
+    // Loaded on click only: SheetJS is ~1 MB and most visitors never export.
+    const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
+    const rows = readings.map((r) => ({
+      "Time":             new Date(r.ts * 1000),
+      "Status":           r.status,
+      "Water Level (cm)": r.water_cm,
+      "Temperature (°C)": r.temp_c,
+      "Humidity (%)":     r.humidity,
+      "CNN Confidence (%)": r.cnn == null ? null : parseFloat(r.cnn),  // Pi sends "97.5%"
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows, { dateNF: "yyyy-mm-dd hh:mm:ss" });
+    ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 17 }, { wch: 17 }, { wch: 13 }, { wch: 15 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Readings");
+    XLSX.writeFile(wb, `floodsense_readings_${new Date().toLocaleDateString("en-CA")}.xlsx`);
+    exportNote.textContent = `Exported ${readings.length} readings.`;
+  } catch (e) {
+    console.error("Export failed:", e);
+    exportNote.textContent = "Export failed. See the browser console.";
+  } finally {
+    exportBtn.disabled = false;
+    exportBtn.textContent = "Export XLSX";
+  }
+}
+exportBtn.addEventListener("click", exportReadings);
 
 // ── View switcher (Dashboard / Data Analysis / Rationale) ──────────────────────
 const VIEWS = ["dashboard", "analysis", "rationale"];

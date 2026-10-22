@@ -249,22 +249,21 @@ Vercel gives you a URL like `https://flood-monitor-webapp.vercel.app`.
 
 ## Step 11 — Tighten Firebase Security Rules
 
-Once everything is working, lock down your RTDB so only the Pi can write.
+Test-mode rules expire after 30 days. After that, every read and write fails with `PERMISSION_DENIED` (the Pi logs `HTTP 401`). Replace them with permanent rules.
 
 Go to **Firebase Console → Realtime Database → Rules** and set:
 
 ```json
 {
   "rules": {
-    "flood_telemetry": {
-      ".read": true,
-      ".write": false
-    }
+    "flood_telemetry": { ".read": true, ".write": true },
+    "snapshots":       { ".read": true, ".write": true },
+    "readings":        { ".read": true, ".write": true }
   }
 }
 ```
 
-This lets the webapp read data publicly but blocks writes from the browser. The Pi writes directly via the REST API using your `WEB_URL` which can be further secured with a Firebase secret if needed.
+The Pi writes through the REST API without authentication, so `.write` must stay `true`. Setting it to `false` blocks the Pi too. `readings` is the per-minute history written by open dashboards and used by **Export XLSX**. Every other path is denied by default. Trade-off: anyone who has the database URL can write to these nodes. To lock that down, have the Pi send a database secret (`?auth=...`) and set `.write` to `false`.
 
 ---
 
@@ -275,7 +274,7 @@ This lets the webapp read data publicly but blocks writes from the browser. The 
 | `Snapshot upload failed: Must supply api_key` | Cloudinary credentials not set | Check `CLOUDINARY_API_KEY` in `Flood_system_final.py` |
 | `Snapshot upload failed: 401` | Wrong API secret | Re-copy `CLOUDINARY_API_SECRET` from the dashboard |
 | Webapp shows "CONNECTING..." forever | Wrong `databaseURL` in `app.js` | Re-check config from Step 4 |
-| Sensor values not updating | RTDB test mode expired (30 days) | Update RTDB rules as shown in Step 11 |
+| Sensor values not updating / `PERMISSION_DENIED` in browser console / Pi logs `401` | RTDB test mode expired (30 days) | Update RTDB rules as shown in Step 11 |
 | Snapshots not appearing on webapp | Snapshot only uploads on threshold breach | Hold hand within 30 cm of sensor to trigger |
 | LCD shows nothing | I2C not enabled or wrong address | Run `i2cdetect -y 1` and check for `27` in the grid |
 | Script crashes on import | `cloudinary` not installed | Run `pip install cloudinary` inside the venv |
